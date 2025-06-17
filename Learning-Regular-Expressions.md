@@ -50,7 +50,7 @@ In this course, a JavaScript web application called "regexr" will be used, but t
 - https://regexpal.com 
 
 ### Notation Conventions 
-A regular expression is usually defined within two `/` characteers: 
+A regular expression is usually defined within two `/` characters: 
 ```
 /abc/
 ```
