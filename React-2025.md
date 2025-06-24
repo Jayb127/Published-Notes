@@ -1124,7 +1124,7 @@ When updating the value of a state variable using the `useState` hook and setter
 
 Refer to the `toggleEditing` function below: 
 
-``` JSXw
+``` JSX
 export default function Player({ name, symbol }) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -1197,8 +1197,293 @@ function handleSelectSquare(rowIndex, colIndex){
 ```
 
 ### Core Concept: Lifting State Up
-If a value is needed in two separate components, we need to manage the value in the closest ancestor that has access to both. This is referred to as **lifting the state up**. 
+Honestly, Max's definition of this was a little unclear, so the following definition is from React's official documentation: 
 
-The ancestor manages the state value that's needed by both child 1 and child 2. Let's assume that child 1 will be modifying the value of the state variable and child 2 will be displaying the value of the state variable. 
-The ancestor passes a function that eventually changes the state via props to child 1. This allows the child component to initiate the state change. 
-The ancestor passes the state value via props to child 2. 
+*Sometimes, you want the state of two components to always change together. To do it, remove state from both of them, move it to their closest common parent, and then pass it down to them via props. This is known as lifting state up, and it’s one of the most common things you will do writing React code.*
+
+> Note: Concatenating strings in JavaScript is much easier using backticks, a dollar sign, and curly braces, known as **template literal** syntax. E.g. `` `${obj1.key}${obj2.key}`  ``
+
+In Max's example project (the Tic-Tac-Toe game), the App component contains a Player component and a Gameboard component. The Player component is added to the app twice (once for each player), and the Gameboard is added once. Both components need to know whose turn it is, but for different reasons: 
+* The Player component must be able to identify whose turn it is by drawing a box around that player using a CSS class. 
+* The Gameboard component must know which symbol to add to the box (either "X" or "O") when a box is clicked. 
+  * The Gameboard component must also be prepared to respond to user input (clicking a box) to make a move. 
+
+Because both components need this information, it is managed in the App component: 
+
+``` JSX
+function App() {
+  // activePlayer is the state that has been "lifted up" to the nearest ancestor of the two dependent components, Player and Gameboard 
+  const [activePlayer, setActivePlayer] = useState("X");
+
+  // handleSelectSquare is called when it's time to switch turns. It's defined in the App component, but it is sent down to the Gameboard component, which will trigger it in response to a button click. That button lives inside the Gameboard, not the App. 
+  function handleSelectSquare() {
+    // Remember, when calling the state setter function, you can pass in a function that accepts 1 argument (by default, the current state value) and returns the new state value.
+    // In this case, the new state value is dependent on the current state value. 
+    setActivePlayer((curActivePlayer) => (curActivePlayer === "X" ? "O" : "X"));
+  }
+
+  return (
+    <main>
+      <div id="game-container">
+        <ol id="players" className="highlight-player">
+        <!-- 
+        The default value of activePlayer is "X" because X will always go first. However, as the state is updated, the CSS needs to be updated as well. Because activePlayer holds a value of either X or O, the comparison is simple, and an isActive prop is defined for the Player component to determine whether that Player component represents the current player's turn. 
+        -->
+          <Player
+            initialName="Player 1"
+            symbol="X"
+            isActive={activePlayer === "X"}
+          />
+          <Player
+            initialName="Player 2"
+            symbol="O"
+            isActive={activePlayer === "O"}
+          />
+        </ol>
+        <!-- 
+        To access the handleSelectSquare function in the Gameboard component, it needs to be passed in as a prop. 
+        -->
+        <GameBoard onSelectSquare={handleSelectSquare} />
+      </div>
+    </main>
+  );
+}
+// In Gameboard.jsx: 
+const initialGameBoard = [
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+];
+
+// Destructing syntax is used to create the onSelectSquare prop that carries the handleSelectSquare function. 
+export default function GameBoard({ onSelectSquare }) {
+  let gameBoard = initialGameBoard;
+  const [gameBoard, setGameBoard] = useState(initialGameBoard);
+
+  // This gets pretty confusing, because we're reusing a term (handleSelectSquare) here
+  // This function is called when a box is clicked (note the onClick listener attached to the button below)
+  // In addition to performing other functions (like calling another state setter function for the Gameboard), this function calls onSelectSquare, the function passed down from the App component. This function's execution will trigger an update to the activePlayer state variable. 
+  function handleSelectSquare(rowIndex, colIndex) {
+    setGameBoard((prevGameBoard) => {
+      const updatedBoard = [
+        ...prevGameBoard.map((innerArray) => [...innerArray]),
+      ];
+      updatedBoard[rowIndex][colIndex] = activePlayerSymbol;
+      return updatedBoard;
+    });
+    onSelectSquare();
+  }
+
+  return (
+    <ol id="game-board">
+      {gameBoard.map((row, rowIndex) => (
+        <li key={rowIndex}>
+          <ol>
+            {row.map((playerSymbol, colIndex) => (
+              <li key={colIndex}>
+                <button onClick={() => handleSelectSquare(rowIndex, colIndex)}>
+                  {playerSymbol}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// In Player.jsx: 
+// Note: some code has been removed from this component because it's not relevant to the current concept. 
+export default function Player({ initialName, symbol, isActive }) {
+  return (
+    // The logic has already been worked out in the App component. Here, it's only necessary to evaluate the value of isActive. If it's true, the "active" CSS class is applied to the component. Otherwise, the className "attribute" is undefined. The "active" CSS class is what draws the border around the active player. 
+    <li className={isActive ? "active" : undefined}>
+      <span className="player">
+        {editablePlayerName}
+        <span className="player-symbol">{symbol}</span>
+      </span>
+      <button onClick={toggleEditing}>{isEditing ? "Save" : "Edit"}</button>
+    </li>
+  );
+}
+```
+
+## Avoding Intersecting States 
+In the next stage of the Tic-Tac-Toe project, the log needs to be added. This will be its own component, but it presents a problem with the way state is currently managed. 
+
+The Log component must show a list of each move taken by each player as it happens. Each of these is called a turn, and it makes sense that it would be a custom object that stores a reference to the box clicked by the player and that player's symbol (either X or O, stored in the "activePlayer" state variable). The game's log, therefore, will be an array of turn objects. 
+
+Note, however, that the Gameboard component is already keeping track of some turn information as it happens. When a square is clicked, that square's row index and column index values are passed to the handleSelectSquare function and combined with the activePlayer to determine which symbol goes where. The Gameboard component is then rerendered to reflect the newest move. The Log component could make use of this information, but it also needs to know the order in which the moves occurred. 
+
+We could create an entirely new state object for the Log and manage it separately from the Gameboard state, but this is duplicative. Wherever possible, we should avoid managing the same information in two different states, also known as "intersecting state." Instead, we can lift up the state from Gameboard, manage it in the App component in a way that keeps track of the order of the moves (which is only important for the Log component, not so much the gameboard itself) and make the information available to both the Gameboard and Log. 
+
+In the App component, we create a new state object to hold each turn in the game. This will be an array of "turn" objects, and it is empty by default. 
+In the Gameboard component, we remove the handleSelectSquare function altogether. Its purpose was to create a new gameboard object (the multidimensional array) that reflects the most recent move, pass that into the state setter function, and then call function that had been passed into the Gameboard component by the App component as a prop to update the activePlayer. However, we don't need any of this anymore since we'll be rendering the gameboard a slightly different way, using the turns passed in from the App component. This entire function, therefore, can be removed, and the button's onClick event listener can directly call the prop function, now passing in the row index and column index that we'll need in the App component. 
+
+``` JSX 
+// In App.jsx:
+function App() {
+  // gameTurns is used in Gameboard and Log
+  const [gameTurns, setGameTurns] = useState([]);
+  // activePlayer is used in Player and Gameboard 
+  const [activePlayer, setActivePlayer] = useState("X");
+
+  // handleSelectSquare is passed down to Gameboard, attached to the button onClick listener, and called using the rowIndex and colIndex associated with the clicked square. 
+  function handleSelectSquare(rowIndex, colIndex) {
+    setActivePlayer((curActivePlayer) => (curActivePlayer === "X" ? "O" : "X"));
+  
+    setGameTurns((prevTurns) => {
+      let currentPlayer = "X";
+
+      // This logic checks to see if there are any turns in the array yet (which there won't be on first render) and then sets the currentPlayer based on the first item in the turns array. Note that the newest turn is added as the first item in the array, so the most recent turn is always at index 0. 
+      if (prevTurns.length > 0 && prevTurns[0].player === "X") {
+        currentPlayer = "O";
+      }
+      // The structure of the "turn" object is defined here and populated now that all the information is available. 
+      const updatedTurns = [
+        {
+          square: {
+            row: rowIndex,
+            col: colIndex,
+          },
+          player: currentPlayer,
+        },
+        // The remaining items in the array are added after the first item, using the spread operator. 
+        ...prevTurns,
+      ];
+      return updatedTurns;
+    });
+  }
+
+  return (
+    <main>
+      <div id="game-container">
+        <ol id="players" className="highlight-player">
+          <Player
+            initialName="Player 1"
+            symbol="X"
+            isActive={activePlayer === "X"}
+          />
+          <Player
+            initialName="Player 2"
+            symbol="O"
+            isActive={activePlayer === "O"}
+          />
+        </ol>
+        <!-- The turns array is passed into the Gameboard component so it can be used to populate the moves already taken -->
+        <GameBoard onSelectSquare={handleSelectSquare} turns={gameTurns} />
+      </div>
+      <!-- The turns are also passed to the Log component so they can be written out below the board. -->
+      <Log turns={gameTurns} />
+    </main>
+  );
+}
+
+// In Gameboard.jsx: 
+const initialGameBoard = [
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+];
+
+export default function GameBoard({ onSelectSquare, turns }) {
+  let gameBoard = initialGameBoard;
+
+  // The method of rendering the gameboard is changed here to use the turns array. 
+  // Note the use of destructring to define the variables using the arguments passed into the function call 
+  // This loop is an example of deriving state from props. Instead of creating a state object in Gameboard, we're using information in the turns array to infer what we need. 
+  for (const turn of turns) {
+    const { square, player } = turn;
+    const { row, col } = square;
+    gameBoard[row][col] = player;
+  }
+  
+  return (
+    <ol id="game-board">
+      {gameBoard.map((row, rowIndex) => (
+        <li key={rowIndex}>
+          <ol>
+            {row.map((playerSymbol, colIndex) => (
+              <li key={colIndex}>
+                <!-- 
+                Before, the onClick listener called a local function that, among other things, called onSelectSquare. Now, the rest of that function isn't necessary, and onSelectSquare can be called directly. 
+                Note, however, that we can't just write onClick={onSelectSquare(rowIndex, colIndex)}
+                The anonymous function syntax must be used so we can pass arguments in 
+                -->
+                <button onClick={() => onSelectSquare(rowIndex, colIndex)}>
+                  {playerSymbol}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// In Log.jsx: 
+export default function Log({ turns }) {
+  return (
+    <ol id="log">
+      {turns.map((turn) => (
+        <!-- 
+        Remember, the list item has to have a key value. 
+        This is always true when outputting a dynamic list 
+        -->
+        <li key={`${turn.square.row}${turn.square.col}`}>
+          {turn.player} placed at row {turn.square.row} column {turn.square.col}
+        </li>
+      ))}
+    </ol>
+  );
+}
+``` 
+
+### Reducing State Management and Identifying Unnecessary State
+Deriving values and information from state is a great way to reduce the total number of state objects in your code and make it less complex. 
+
+For example, in App.js: 
+``` JSX
+// This function can be used both to determine the active player and to handle the selection of a new square (in the handleSelectSquare function) 
+function deriveActivePlayer(gameTurns) {
+  let currentPlayer = "X";
+
+  if (gameTurns.length > 0 && gameTurns[0].player === "X") {
+    currentPlayer = "O";
+  }
+
+  return currentPlayer;
+}
+
+function App() {
+  // The activePlayer state is no longer needed, because we can use the gameTurns array to infer that information. 
+  const [gameTurns, setGameTurns] = useState([]);
+
+  const activePlayer = deriveActivePlayer(gameTurns);
+
+  function handleSelectSquare(rowIndex, colIndex) {
+    setGameTurns((prevTurns) => {
+      let currentPlayer = deriveActivePlayer(prevTurns);
+
+      // Note that the updatedTurns array is adding the turns
+      // in the reverse order in which they occur. The most recent
+      // turn becomes the first item in the array.
+      const updatedTurns = [
+        {
+          square: {
+            row: rowIndex,
+            col: colIndex,
+          },
+          player: currentPlayer,
+        },
+        ...prevTurns,
+      ];
+      return updatedTurns;
+    });
+  }
+  // return statement goes here, but no necessary in this example. 
+}
+
+```
