@@ -1,7 +1,5 @@
 <https://www.udemy.com/course/react-the-complete-guide-incl-redux>
 
-Started course on Wednesday, March 27, 2025.
-
 To access a browser-based development environment, go to <https://react.new>
 
 ## Section 2: JavaScript Refresher
@@ -82,45 +80,26 @@ The `as` keyword can also be used to rename an imported thing. E.g. `import {x, 
 Value types:
 
 *   String
-
     *   Text values
-
     *   Wrapped with single or double quotes
-
     *   Can also be created with backticks (\`)
-
 *   Number
-
     *   Positive or negative
-
     *   With decimal point (float) or without it (integer)
-
 *   Boolean
-
     *   True or false
-
     *   A simple "yes" or "no" value type
-
     *   Typically used in conditions
-
 *   Null & undefined
-
     *   "There is no value"
-
     *   undefined: default if no value was assigned yet
-
     *   null: explicitly assigned by developer (reset value)
 
 Rules and recommendations for variables/identifiers:
-
 *   Must not contain whitespace or special characters (except \$ and \_ )
-
 *   May contain numbers but must not start with a number
-
 *   Must not clash with reserved keywords
-
 *   Should use camelCasing
-
 *   Should describe what the thing it identifies contains or does
 
 Variables can be delcared using `let` or `const`, but `const` can't be changed once it's assigned. It's good practice to use `const` whenever possible for values that should not be reassigned.
@@ -128,23 +107,14 @@ Variables can be delcared using `let` or `const`, but `const` can't be changed o
 #### Operators:
 
 *   `+` for adding numbers and concatenating strings
-
 *   `*` for multiplication
-
 *   `-` for subtraction
-
 *   `/` for division
-
 *   `=` for assignment
-
 *   `===` for comparing values. An expression comparing two values with this operator will return `true` if the values are equal.
-
 *   `>` for "greater than"
-
 *   `>=` for "greater than or equal to"
-
 *   `<` for "less than"
-
 *   `<=` for "less than or equal to"
 
 ### Functions
@@ -236,7 +206,7 @@ const itemIndex = hobbies.findIndex((item) => {
 
 // This can be simplified because the only thing in the function body is a `return` statement. 
 
-const index = hobbies.finxIndex ((item) => item === "Sports");
+const index = hobbies.findIndex ((item) => item === "Sports");
 ```
 
 The `map()` method allows you to transform every item in an array. Like `findIndex()`, it takes a function as a parameter, and it returns a new array that contains the transformed values. 
@@ -1309,7 +1279,7 @@ export default function Player({ initialName, symbol, isActive }) {
 }
 ```
 
-## Avoding Intersecting States 
+### Avoding Intersecting States 
 In the next stage of the Tic-Tac-Toe project, the log needs to be added. This will be its own component, but it presents a problem with the way state is currently managed. 
 
 The Log component must show a list of each move taken by each player as it happens. Each of these is called a turn, and it makes sense that it would be a custom object that stores a reference to the box clicked by the player and that player's symbol (either X or O, stored in the "activePlayer" state variable). The game's log, therefore, will be an array of turn objects. 
@@ -1485,5 +1455,105 @@ function App() {
   }
   // return statement goes here, but no necessary in this example. 
 }
-
 ```
+Completed game code: https://codesandbox.io/p/sandbox/react-essentials-deep-dive-tic-tac-toe-start-forked-mcyqw8
+
+## Styling React Components 
+
+### Using Vanilla CSS
+Vanilla CSS syntax can be used in React as long as the associated file(s) is/are imported into the associated jsx files. 
+
+Pros of Vanilla CSS: 
+- CSS code is decoupled from JSX code
+- You write CSS code as you (maybe) know and (maybe) love
+- CSS code can be written by another developer who needs only a minimal amount of access to your JSX code. 
+
+Cons of Vanilla CSS: 
+- You need to know CSS 
+- CSS code is not scoped to components. CSS rules may clash across components (e.g. same CSS class name used in different components for different purposes) 
+
+### Using Inline Styles
+Inline styles can be applied to components via the "style" JSX prop, just as an HTML element has a "style" attribute. However, specifying the actual styles looks a bit different. 
+
+In HTML: 
+``` HTML 
+<p style="color: red"></p> 
+```
+
+In JSX: 
+```JSX 
+<p style={{
+  color: 'red', 
+  textAlign: 'center'
+}}></p>
+```
+
+In JSX, the style prop accepts an object, which must be passed as a dynamic value. As is the case with all JSX, the dynamic value is denoted by a set of curly braces (the other set), and the object containing the styles is denoted by the inner set. 
+
+Within the style object, you can use any CSS styles, but keep in mind that a hyphenated style (like text-align) won't work in JavaScript, so you can either wrap it in single quotes or (the recommended option) change to camel case notation. 
+
+Pros of Inline Styles: 
+- Quick and easy to add to JSX 
+- Styles only affect the element to which they're added 
+- Dynamic (conditional) styling is simple 
+
+Cons of Inline Styles: 
+- You need to know CSS 
+- You need to style every element individually
+- No separation between CSS and JSX code 
+
+### Dynamic and Conditional Inline Styles 
+In previous examples, we've applied CSS classes to components conditionally. For example: 
+``` JSX 
+<input className={emailNotValid ? 'invalid' : undefined} />
+```
+
+However, inline styles can also be applied conditionally. 
+``` JSX 
+const emailNotValid = submitted && !enteredEmail.includes['0']; 
+// This just evaluates to a true or false value. 
+
+<input style={{
+  backgroundColor: emailNotValid ? '#fed2d2' : '#d1d5db'
+}} />
+```
+
+It's important to know how this works, but it still leads to a lot of duplication. 
+
+### Dynamic and Conditional Styles with CSS Files and Classes 
+When applying a class name to a component using a ternary expression, it's important to know that `undefined` is the appropriate value to use if one of the potential outcomes is that no style is applied to the element. Using the `&&` conditional operator will throw an error because the statement may evaluate to "false" and set that as the class name, which is not valid. 
+
+JavaScript's string literal syntax can be used to dynamically apply class names to a component, including a combination of hardcoded values with dynamic classes. For example: 
+
+``` JSX 
+<label className={`label ${emailNotValid ? 'invalid' : ''}`}>Email</label> 
+```
+
+Note that the `label` class will always be added, but the `invalid` class is subject to a condition. 
+
+### Scoping CSS Rules with CSS Modules 
+By default, CSS rules are not scoped to a specific component. They apply to every applicable element in the application. However, **CSS Modules** can be used to add scopes. By converting a CSS file into a CSS module, the CSS rules in the module become scoped to the component into which they're imported and used, and the rendered code will display text appended to the end of the class name that makes it unique to the component. 
+
+To make a CSS file a CSS module, the file name needs to be changed, as do the associated import statements. The styles must be imported from the CSS module as an object with keys that match the selectors in the CSS module. 
+
+``` JSX 
+import './Header.css'; 
+// becomes 
+import classes from './Header.module.css'
+// and 
+<p className="paragraph">
+// becomes 
+<p className={classes.paragraph}>
+// and it can be done conditionally 
+<p className={1===1 ? classes.paragraph : undefined}>
+```
+
+Advantages of CSS Modules: 
+- CSS code is decoupled from JSX code 
+- You write CSS code as you may already know 
+- CSS code can be written by another developer who needs only a minimal amount of access to your JSX code 
+- CSS classes are scoped to the component files which import them. No CSS name clashes. 
+
+Disadvantages of CSS modules
+- You need to know CSS 
+- You may end up with many small CSS files in your project. 
