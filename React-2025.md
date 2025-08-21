@@ -1557,3 +1557,164 @@ Advantages of CSS Modules:
 Disadvantages of CSS modules
 - You need to know CSS 
 - You may end up with many small CSS files in your project. 
+
+### Styled Components (Third Party Package) 
+With Styled Components, you do not define your styles and rules in separate in CSS or in inline files but in special components that are built with the help of the Styled Components package. 
+
+This package must be installed. In VS Code, this can be done locally by executing: 
+```
+npm install styled-components
+```
+
+In Code Sandbox, use the Dependencies tool and look up "styled-components." 
+
+Once installed, the `styled` object must be imported int your component file from the `styled-components` package. This JS object has many properties, many of which map to HTML elements (h1, h2, div, etc). 
+
+Styled components use the "tagged template" JavaScript syntax, in which CSS rules are placed inside tic marks in order to apply them to a component. Camel case notation is not required for this. Standard CSS works fine. When storing a styled component in a variable, remember to capitalize the variable, as you would with any component. 
+
+``` JSX 
+import { styled } from 'styled-components'; 
+
+const ControlContainer = styled.div`
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.5rem; 
+  margin-bottom: 1.5rem; 
+`
+// In the component return statement, ControlContainer is treated like a component. 
+<ControlContainer></ControlContainer> 
+```
+The result is a `div` component in the `ControlContainer` variable that is styled according to the rules in the template. This component also has access to the `children` prop so it can be wrapped around other content. 
+
+Under the hood, the styled component is rendered onto the page as an element of the typed specified in the declaration with a unique, automatically generated class name. 
+
+For more information on Tagged Templates: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#tagged_templates 
+
+Using styled components may reduce the need to attach class names to JSX elements that would be used as selectors for CSS rules. However, class names can still be added to the custom styled components. If this is done, the styled components package creates a child component of the type specified in the delcaration and forwards any defined props to that child. For example: 
+
+``` JSX 
+// Given a default component with a class name attached
+// The class has CSS in a separate file 
+<label className={`label ${emailNotValid ? 'invalid' : ''}`}>
+  Email
+</label>
+
+// Instead, we can create a styled component called Label 
+// and replace the default label component with it 
+const Label = styled.label`
+  display:block; 
+  margin-bottom: 0.5rem; 
+  font-size: 0.75rem; 
+  font-weight: 700; 
+  letter-spacing: 0.1em; 
+  text-transform: uppercase; 
+  color: #6b7280; 
+`
+<Label className={`label ${emailNotValid ? 'invalid' : ''}`}>
+  Email
+</Label> 
+// This component will now create a child <label> component that has access
+// to the children prop and any other props, like className, that were passed 
+// into the styled component. 
+```
+
+Conditional formatting with styled components uses the same dynamic expressions notated with `${}`. For example: 
+``` JSX 
+// the dynamic expression should contain a function that returns a value that's 
+// compatible with the given style. That function will automatically have access
+// to the corresponding component's props. 
+const Label = styled.label`
+color: ${(props) => props.invalid ? '#f87171' : '#6b7280'}; 
+`
+const emailNotValid = submitted && !enteredEmail.includes('@'); 
+// emailNotValid evaluates to true or false. Instead of using it to dynamically apply a 
+// class name to a component, we can just set it as the value of a prop, which then
+// gets passed to the styled component and is available in the dynamic expression
+// we use to assign the style 
+<Label invalid={emailNotValid}>Email</Label> 
+// "invalid" is now a prop, accessible to the styled component so it can be 
+// used in the dynamic expression that sets the value of the CSS rule. 
+```
+
+The example above actually throws a console error because "invalid" is a built in prop, which causes a clash. Not only is it important to be mindful of those built in prop names, but it's also common practice to use a `$` as a prefix for any props that are meant to be used specifically for styled component styling, so `invalid` becomes `$invalid` to avoid the clash. 
+
+Nested styles and media queries can be incorporated into styled components as well. In the example below, the default `header` component is replaced with a styled component, `StyledHeader`. This component contains an image and some text, for which the styles are nested in the CSS module. In this example, an `&` replaces `header` in the styles wherever nesting is needed: 
+``` JSX 
+const StyledHeader = styled.header`
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  margin-top: 2rem; 
+  margin-bottom: 2rem; 
+
+  & img {
+    object-fit: contain; 
+    margin-bottom: 2rem; 
+    width: 11rem; 
+    height: 11rem; 
+  }
+
+  @media (mid-width: 768px) {
+    margin-bottom: 4rem; 
+
+    & h1 {
+    font-size: 2.25rem; 
+    }
+  }
+`
+```
+
+The same syntax can be used for pseudoselectors like `:hover`. 
+``` JSX 
+  const Button = styled.button`
+    padding: 1rem 2rem; 
+    font-weight: 600; 
+    text-transform: uppercase; 
+    border-radius: 0.25rem; 
+    color: #1f2937; 
+    background-color: #f0b322; 
+    border-radius: 6px; 
+    border: none; 
+
+    &:hover {
+      background-color: #f0920e; 
+    }
+  `; 
+```
+
+Pros of Styled Components: 
+- Quick and easy to add 
+- You continue "thinking in React" (with things like configurable style functions) 
+- Styles are scoped to components. No CSS rule clashes
+
+Cons of Styled Components: 
+- You need to know CSS
+- No strong separation of React & CSS code 
+- You end up with many relatively small "wrapper" components
+
+### Tailwind CSS for React App Styling 
+Tailwind focuses on adding small utility classes to elements to apply styles step-by-step. It also sets up base styles that affect the overall document. You don't actually have to know CSS to use Tailwind. 
+
+Tailwind must be installed with the package manager. For example, npm: 
+```
+npm install -D tailwindcss postcss autoprefixer 
+npx tailwindcss init -p 
+```
+
+Refer to the official documentation for the most current instructions for properly installing Tailwind and setting up the project (including how to use Tailwind's configuration files) to start using it. It might also be helpful to install the Tailwind CSS Intellisense extension to Visual Studio Code. 
+
+For the following code: 
+``` JSX 
+export default function Header() {
+  return (
+    <header className="flex flex-col items-center mt-8 mb-16">
+  )
+}
+```
+
+- `flex` adds Flexbox styling to the element 
+- `flex-col` ensures that the main axis of this flexbox is the vertical axis 
+- `items-center` centers the elements horizontally 
+- `mt-8` adds a top margin of 2rem 
+- `mb-16` adds a margin of 4rem. 
