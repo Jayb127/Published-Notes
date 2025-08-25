@@ -1709,7 +1709,8 @@ For the following code:
 export default function Header() {
   return (
     <header className="flex flex-col items-center mt-8 mb-16">
-  )
+      <img src={logo} alt="A canvas" className="mb-8 w-44 h-44 object-contain" />
+   )
 }
 ```
 
@@ -1717,4 +1718,76 @@ export default function Header() {
 - `flex-col` ensures that the main axis of this flexbox is the vertical axis 
 - `items-center` centers the elements horizontally 
 - `mt-8` adds a top margin of 2rem 
-- `mb-16` adds a margin of 4rem. 
+- `mb-16` adds a margin of 4rem
+- `object-contain` adds `object-fit: contain` css
+- `h-44`/`w-44` set the height and width to 11rem 
+- Tailwind also defines many colors to simplify reating a site color palette. 
+
+> Note: "rem" is a font-relative unit. Specifically, it's relative to the root (html) font-size and not affected by local font-size changes.
+
+> Another note: Max points out that the following examples use Tailwind 3, even though 4 is the current version. For the correct way to do the following steps, refer to the official documentation. 
+
+The `index.css` file can be used to apply styles that may not have an applicable class, like when you want to use a custom backgound image. 
+
+``` CSS
+@tailwind base; 
+@tailwind components;
+@tailwind utilities; 
+
+body {
+  /* Taken from SVGBackgrounds.com */ 
+  background-color: #ffaa00; 
+  background-image: url("url stuff not worth typing out ")
+  background-attachment: fixed; 
+  background-size: cover; 
+}
+```
+
+Tailwind can be extended to use things like Imported fonts. The font can be imported elsewhere in the project (like an `index.html` file) and then referenced in the `tailwind.config.js` file, specifically in the `extend` object. This code makes the font available via the `font-title` class. 
+
+``` JS
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'], 
+  theme: {
+    extend: {
+      fontFamily: {
+        title: ['"Pacifico"', 'cursive']
+      }
+    },
+  },
+  plugins: [], 
+}; 
+```
+
+Note that the font name has to be inside double quotes inside single quotes. That's required by Tailwind. 
+
+Media queries in Tailwind can be applied by prepending certain prefixes to the class name. For example, `w-32` can become `md:w-32` to apply the class only when the minimum width of the container is 768px. 
+
+Pseudo selectors work similarly by prepeinding `hover:` or `focus:` to any Tailwind class. 
+
+The approach for dynamic and conditional styling is also pretty straightforward. Since we're using classes for everything, it's just a matter of modifying the list of applied classes according to the appropriate logic. 
+
+```JSX 
+let labelClasses = 'block mb-2 text-xs font-bold'; 
+
+if (invalid){ 
+  labelClasses += ' text-red-400'; 
+} else {
+  labelClasses += ' text-stone-300'; 
+}
+
+return (
+  <label className={labelClasses}>Label Text</label> 
+)
+```
+
+Pros of Tailwind CSS 
+- You don't need to know (a lot about) CSS 
+- Rapid development 
+- No style clashes between components since you don't define any CSS rules
+- Highly configurable and extensible 
+
+Cons of Tailwind CSS
+- Relatively long className values 
+- Any style changes require editing JSX
+- You end up with many relatively small "wrapper" components OR lots of copy and pasting
