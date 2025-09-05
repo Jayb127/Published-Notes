@@ -2,7 +2,7 @@
 
 To access a browser-based development environment, go to <https://react.new>
 
-## Section 2: JavaScript Refresher
+## JavaScript Refresher
 
 ### Adding JavaScript to a Website
 
@@ -1073,7 +1073,7 @@ export default function Button({children, mode = "filled",Icon, ...props}) {
  }
  return (
      <button className={classNames} {...props}>
-     <!-- This section wsa the tricky part for me 
+     <!-- This section was the tricky part for me 
      The Icon component is only used for 2 of the buttons, so the syntax below checks whether there's a value passed in for the Icon component, and renders it if so. 
      -->
     {Icon && (
@@ -1737,7 +1737,7 @@ The `index.css` file can be used to apply styles that may not have an applicable
 body {
   /* Taken from SVGBackgrounds.com */ 
   background-color: #ffaa00; 
-  background-image: url("url stuff not worth typing out ")
+  background-image: url("url stuff not worth typing out ");
   background-attachment: fixed; 
   background-size: cover; 
 }
@@ -1791,3 +1791,554 @@ Cons of Tailwind CSS
 - Relatively long className values 
 - Any style changes require editing JSX
 - You end up with many relatively small "wrapper" components OR lots of copy and pasting
+
+## Debugging React Apps
+A string can be converted to a number simply by putting a `+` before the variable name. E.g. 
+```JS
+let stringNum = '1000'; 
+console.log(+stringNum); // will be 1000 instead of '1000' 
+```
+
+### Using String Mode in React
+Strict Mode is a react feature that can be access by importing the `StrictMode` component from `react` wherever it should be used. The `StrictMode` component is meant to be wrapped around whatever component you want to use it in. This will also add strict mode to the component's children. 
+``` JSX
+import { StrictMode } from 'react'; 
+```
+
+Strict mode executes every component twice by default (only in development) 
+- Keep in mind that this isn't the same thing as executing ALL the code twice. If there's code outside the component functions, it will only be executed once. Only the componnt code is executed twice. 
+
+## Using Refs and Portals 
+To start this module, Max demonstrated the complexity of creating two-way binding in React using state and other features we've already learned. An input field and button are both wired up with state variables and event handler functions. Additional logic has to be added to create the right user experiences, and it ends up being a tedious task requiring a lot of code. Refs are introduced as a solution to this problem. 
+
+### Connecting and Accessing HTML Elements via Refs
+
+React **refs** are values that are treated a specific way by React, kind of like state. Refs have several features. The first example used in this project showcases the ability to connect a ref to a specific JSX element using a `ref` prop that's supported by all React components out of the box. Once assigned to an element, a ref will become a JavaScript object with a key of `current`, which contains the element. `current` then has access to all the properties and methods that the element supports. For example `myInput.current.value` returns the value of an input field. 
+
+To use refs, the `useRef` hook must be imported into the component from `react` the same way `useState` is. 
+
+``` JSX
+import { useState, useRef } from 'react'; 
+
+export default function Player(){
+  const [enteredPlayerName, setEnteredPlayerName] = useState(''); 
+  // the ref is defined within the component the same way as state 
+  // It's then bound to the input JSX element in the return statement 
+  const playerName = useRef(); 
+
+  function handleClick(event){
+    // The ref makes the element easily available elsewhere
+    // The ref object will always have a "current" property that holds the associated element 
+    setEnteredPlayerName(playerName.current.value); 
+  }
+
+  return (
+    <section id="player">
+      // Remember the ternary shorthand used below. If the value is true, return the value. Otherwise, return the other value. 
+      <h2>Welcome {enteredPlayerName ?? 'unknown entity'}</h2>
+      <p>
+        // The "ref" prop is set to the ref variable defined in the component 
+        <input ref={playerName} type="text"/>
+        <button onClick={handleClick}>Set Name</button>
+      </p>
+    </section>
+  )
+}
+```
+
+> Note: As a matter of best practice, our code should not be making changes directly to the DOM. React is built specifically to make those changes if it's set up properly. So for example, clearing the value of an text input element by setting the ref's value to an empty string (e.g.`playerName.current.value = '';`) is not ideal. If it *must* be done this way, or if doing it this way saves a lot of time/extra code, take special care to ensure that doing so will have minimal impact on the other elements on the page. In this example, the player name input field isn't intricately connected to other state values/React elements, so it's an acceptable, if inelegent, solution. 
+
+### State vs Refs: 
+- State: 
+  - Causes component re-evaluation (re-execution) when changed 
+  - Should be used for values that are directly reflected in the UI 
+  - Should not be used for "behind the scenes" values that have no direct UI impact 
+- Refs: 
+  - Do not cause component re-evaluation when changed
+  - Can be used to gain direct DOM element access ( -> great for reading values or accessing certain browser APIs) 
+
+> Note: at this point, Max added a `TimerChallenge` component and made a few modifications to the UI. These changes are reflected in the following examples. 
+
+### Setting Timers and Managing State
+The next step in the project is to update the `TimerChallenge` component so that a timer is started when the "Start Challenge" button is pressed. We'll do this using the `setTimeout` function. 
+
+```JSX
+export default function TimerChallenge({ title, targetTime }) {
+  const [timerStarted, setTimerStarted] = useState(false); // #5
+  const [timerExpired, setTimerExpired] = useState(false); // #2
+  function handleStart(){
+    setTimerStarted(true); //#6
+    setTimeout(() => {
+      // Once the user clicks the button to stop the timer, this function is called, which 
+      // updates the timerExpired state value. 
+      setTimerExpired(true); //#3
+    }, targetTime * 1000); // #1
+  }
+  return (
+    <section className="challenge">
+      <h2>{title}</h2>
+      {timerExpired && <p>You Lost!</p>} // #4
+      <p className="challenge-time">
+        {targetTime} second{targetTime > 1 ? "s" : ""}
+      </p>
+      <p>
+        <button onClick={handleStart}>{timerStarted ? 'Stop' : 'Start'} Challenge</button> // #7
+      </p>
+      <p className={timerStarted ? 'active' : undefined}>
+        {timerStarted ? 'Time is running...' : 'Timer inactive'} // #8
+      </p>
+    </section>
+  );
+}
+```
+
+Notes: 
+1.  First, note that we're using the targetTime prop to set the duration of the setTimeout function. Since the targetTime is expressed in seconds, but setTimeout must be set in milliseconds, we multiply the targetTime by 1000. 
+2. We need to keep track of when the timer expires, so we create a state variable for that and set the default value to `false`. 
+3. When the timer runs out, the state updater function is called to set `timerExpired` to `true`. 
+4. If the timer is expired, the "You Lost" message should be displayed to the user 
+5. We also need to keep track of when the timer starts, so we create a second state variable for that
+6. We want the timer to start immediately when the user clicks the button, so we queue up the state update immediately, outside the `setTimeout` callback function. 
+7. If the timer is started, we want the button to read "Stop Challenge," not start, so we add conditional logic to that. 
+8. Additional conditional rendering of UI elements. 
+
+At this point, the timer can be started, and the UI will update to reflect that it's running, as well as when the time expires (and the player lost). However, there's currently no way for the user to stop the timer themselves. We can define a function (`handleStop()`), but how do we get access to the timer information from within `handleStop`? This is where a ref can be used. 
+
+### Using Refs 
+A JavaScript timer can be stopped by using the `clearTimeout` function, to which we must pass a pointer to the timer that must be stopped. 
+
+``` JSX
+export default function TimerChallenge({title, targetTime}){
+  let timer; // #1
+
+  function handleStart(){
+    timer = setTimeout(() => { // #2 
+      setTimerExpired(false); 
+    }, targetTime * 1000); 
+    setTimerStarted(true); 
+  }
+
+  function handleStop(){
+    clearTimeout(timer); // #3 
+  }
+
+  return (
+    <button onClick={timerStarted ? handleStop : handleStart }> // #4
+  )
+}
+```
+Notes: 
+1. We create a timer variable scoped so that it's accessible by both the `handleStart()` and `handleStop()` functions 
+2. `setTimeout()` returns the pointer to the timer, so we store it in the `timer` variable 
+3. We use `clearTimeout()` to stop the timer. 
+4. The function called by the button click is determined by whether the timer has started
+
+However, this still doesn't work, because `timer` is a variable that is getting cleared when state changes prompt the component to re-execute. 
+
+We could move `timer` outside the component function altogether so that it isn't reset by the state change, but that doesn't work because `timer` is **shared across all instances of the component.** Trying to run two challenges at once, for example, causes a pointer to be overwritten even though it's still needed. 
+
+Refs can be used to manage any kind of value, not just a JSX element, so it's perfect for this purpose. So we can create a ref called `timer`, assign the `setTimeout()` pointer to it, and then pass it into `clearTimeout()`. Remember, though, to use `timer.current`. Using the ref in this way ensures that the ref is specific to the component instance and that it doesn't get cleared out when the component re-executes. 
+
+``` JSX 
+export default function TimerChallenge({title, targetTime}){
+  const timer = useRef(); 
+  // ... 
+
+  function handleStart() {
+    timer.current = setTimeout(() => {
+      //...
+    }, targetTime * 1000);
+  }
+  
+  function handleStop(){
+    clearTimeout(timer.current); 
+  }
+}
+```
+
+### Adding a Modal Component and Forwarding Refs 
+Once the time expires or the player stop the timer, a dialog/modal should be displayed. For this, we'll use a new component, `ResultModal`. 
+
+```JSX
+export default function ResultModal({ result, targetTime }) {
+  return (
+    <dialog className="result-modal">
+      <h2>You {result}</h2>
+      <p>
+        The target time was: <strong>{targetTime}</strong> seconds.
+      </p>
+      <p>
+        You stopped the timer with <strong>X seconds left.</strong>
+      </p>
+      <form method="dialog">
+        <button>Close</button>
+      </form>
+    </dialog>
+  );
+}
+
+```
+
+Notes: 
+1. The `dialog` tag is natively supported in HTML. None of that is React-specific
+2. If you put a `form` with a `method` of `dialog` inside a `dialog` element, you can add a button that will be automtacally configured to close the dialog when clicked. No additional JavaScript is necessary. Again, this is just native to HTML. 
+3. The `result` will indicate whether the player won or list, and the `targetTime` is the amount of time they were aiming for. 
+4. The `result-modal` class is for styling and does not affect the functinality. 
+5. By default, the `dialog` element is hidden. Adding the `open` prop/attribute to it will make it visible. 
+  * However, adding setting `open` to `true` (by explicitly adding it to the `dialog`) prevents the built in backdrop that darkens the rest of the screen from appearing, so it has to be set programmatically. 
+  * To do this, the dialog itself must be accessible from the parent component. 
+
+Now, the `ResultModal` component needs to be imported into `TimerChallenge` and implemented. This implementation needs to handle scenarios where the player both won and lost. To make the dialog accessible to the `TimerChallenge` component so it can be opened at the right time, we can use a ref. 
+
+```JSX
+export default function TimerChallenge({ title, targetTime }) {
+  const timer = useRef();
+  const dialog = useRef(); // #1
+  const [timerStarted, setTimerStarted] = useState(false);
+  const [timerExpired, setTimerExpired] = useState(false);
+
+  function handleStart() {
+    timer.current = setTimeout(() => {
+      setTimerExpired(true);
+      dialog.current.showModal(); //#3
+    }, targetTime * 1000);
+
+    setTimerStarted(true);
+  }
+
+  function handleStop() {
+    clearTimeout(timer.current);
+  }
+
+  return (
+    <>
+      <ResultModal ref={dialog} targetTime={targetTime} result="lost" /> { /* #2 */}
+      <section className="challenge">
+        <h2>{title}</h2>
+        {/* {timerExpired && <p>You Lost!</p>}    #4  */}
+        <p className="challenge-time">
+          {targetTime} second{targetTime > 1 ? "s" : ""}
+        </p>
+        <p>
+          <button onClick={timerStarted ? handleStop : handleStart}>
+            {timerStarted ? "Stop" : "Start"} Challenge
+          </button>
+        </p>
+        <p className={timerStarted ? "active" : undefined}>
+          {timerStarted ? "Time is running..." : "Timer inactive"}
+        </p>
+      </section>
+    </>
+  );
+}
+
+```
+
+Notes: 
+1. First, we create the ref in `TimerChallenge`
+2. Then, the `ResultModal` component is rendered in the `return` statement. Because it's invisible by default, we don't have to worry about applying conditional logic. The `targetTime` and `result` are passed in with the `dialog` ref we created in step 1. 
+3. Once again, the `dialog` element/component has a `showModal()` method built in to make it appear.
+4. This win/loss message no longer needed since the modal is doing that job. 
+
+Passing in a ref like this is a new feature of React (v19) and isn't supported in older versions. The alternative, pre-v19 way to do this is to use `forwardRef`. 
+
+```JSX 
+import {forwardRef} from 'react'; 
+const ResultModal = forwardRef(function ResultModal({ result, targetTime}, ref) {
+
+})
+
+export default ResultModal; 
+```
+
+1. First, import `forwardRef` from `react`. 
+2. Modify the export/declaration of the component as above, wrapping the original in `forwardRef`
+3. Instead of adding `ref` in the props object, it must be added as a second parameter for the component function. 
+4. Remember to export the component at the end of the file. 
+
+### Exposing Component APIs via the useImperativeHandle Hook
+
+So far, we've defined a few refs in this sample project that rely on the developer/developers remembering and understanding what the ref can actually do. For example, the `dialog` ref points to a component that returns a `<dialog>` value. Accordingly, `dialog.current` points directly to that dialog element and has access to all the same properties and methods. This is why we can call `dialog.current.showModal()`. However, if someone changes the `<dialog>` tags to `<div>` tags, the ref becomes a `<div>` element and the `showModal()` method is no longer accessible. 
+
+The `useImperativeHandle` hook is a less commonly-used hook that can make components more stable and reliable. It specifically identifies the methods and properties of an element that should be available to any refs to that element. So in the example with the dialog, we use `useImperativeHandle` to create an `open()` function that handles the opening of the dialog, taking that responsibility away from the `TimerChallenge` component (its parent). Now in `TimerChallenge`, the ref will call `open`. This way, the component can write its own function logic instead of allowing everything the element can do be accessible by the parent. 
+
+``` JSX 
+export default function ResultModal({ ref, result, targetTime }) {
+  const dialog = useRef(); // #1
+  
+  useImperativeHandle(ref, () => { // #3
+    return {
+      open() { // #4
+        dialog.current.showModal();  
+      }
+    }
+  })
+
+  return (
+    //<dialog ref={ref} className="result-modal">
+    <dialog ref={dialog} className="result-modal"> {/* #2  */}
+      <h2>You {result}</h2>
+      <p>
+        The target time was: <strong>{targetTime}</strong> seconds.
+      </p>
+      <p>
+        You stopped the timer with <strong>X seconds left.</strong>
+      </p>
+      <form method="dialog">
+        <button>Close</button>
+      </form>
+    </dialog>
+  );
+}
+
+
+```
+
+Notes: 
+
+1. First, a new ref is created to interact with the `<dialog>` component in the `return` statement. 
+2. The dialog component is now being bound to our new ref. 
+  * Note the commented out line. Before, the ref passed into the component as a prop was immediately bound to to the component in the `return` statement. Now, that link has been broken. Instead, the ref passed into the component as the `ref` prop is used in our new hook. 
+3. `useImperativeHandle` takes two arguments. The first is a ref, and the second is a list of properties and methods that should be exposed to outside components. 
+4. We've defined `open()` as the only method accessible by the parent on any refs to this component. Now inside `open()`, we use our new ref to close the modal, and we can add any other logic we want in here. 
+
+### Improving State Usage
+So far, the application has logic built in for losing the game, but it doesn't handle win conditons well. We can rework how we're using state in the `TimerChallenge` component to improve this. 
+
+``` JSX 
+import { useState, useRef } from "react";
+import ResultModal from "./ResultModal";
+
+export default function TimerChallenge({ title, targetTime }) {
+  const timer = useRef();
+  const dialog = useRef();
+
+  // const [timerStarted, setTimerStarted] = useState(false); #1 
+  // const [timerExpired, setTimerExpired] = useState(false);
+
+  const [timeRemaining, setTimeRemaining] = useState(targetTime * 1000); // #2 
+
+  const timerIsActive = timeRemaining > 0 && timeRemaining < targetTime * 1000; // #9
+
+  if (timeRemaining <= 0) { // #8
+    clearInterval(timer.current);
+    setTimeRemaining(targetTime * 1000);
+    dialog.current.open();
+  }
+
+  function handleStart() {
+    // timer.current = setTimeout(() => {
+    timer.current = setInterval(() => {  // #3 
+      /* 
+      setTimerExpired(true);
+      dialog.current.open();
+     }, targetTime * 1000); #4
+      */
+      setTimeRemaining((prevTimeRemaining) => prevTimeRemaining - 10); // #6 
+    }, 10);
+
+    // setTimerStarted(true); #5 
+  }
+
+  function handleStop() { 
+    // clearTimeout(timer.current); // #7
+    dialog.current.open();
+    clearInterval(timer.current);
+  }
+
+  return (
+    <>
+      <ResultModal ref={dialog} targetTime={targetTime} result="lost" />
+      <section className="challenge">
+        <h2>{title}</h2>
+        <p className="challenge-time">
+          {targetTime} second{targetTime > 1 ? "s" : ""}
+        </p>
+        {/* <p>
+          <button onClick={timerStarted ? handleStop : handleStart}>
+            {timerStarted ? "Stop" : "Start"} Challenge
+          </button>
+        </p>
+        <p className={timerStarted ? "active" : undefined}>
+          {timerStarted ? "Time is running..." : "Timer inactive"}
+        </p> */}
+        <p>
+          <button onClick={timerIsActive ? handleStop : handleStart}> {/* #10 */}
+            {timerIsActive ? "Stop" : "Start"} Challenge
+          </button>
+        </p>
+        <p className={timerIsActive ? "active" : undefined}>
+          {timerIsActive ? "Time is running..." : "Timer inactive"}
+        </p>
+      </section>
+    </>
+  );
+}
+```
+
+Notes: 
+1. We're not going to need these state values anymore, so we'll get rid of them. 
+2. Instead, we'll use a single state value, `timeRemaining`, which we'll be able to infer from the `targetTime` prop passed into the component. `targetTime` is the default value of the `timeRemaining` state variable. 
+3. To do this, we need to switch from `setTimeout()` to `setInterval()`. The latter allows us to execute some code at regular intervals. In this case, we're doing it every 10 milliseconds. 
+4. None of the logic from before is applicable so we're removing it. 
+5. Another use of a state setter function that we're no longer using. 
+6. Once the user clicks the `Start` button to initiate the challenge, `setInterval` begins running. At every 10 millisecond interval, the `setTimeRemaining` setter will be executed. Note the use of the shorthand syntax and remember that the current value of the state is available to use as a reference in calculating the new value. Here, the current state value (`prevTimeRemaining`) is reduced by 10 and returned as the new value. 
+7. The `handleStop()` function is called in response to a user clicking the "stop" button **before time runs out**. The dialog box is opened and the interval is cleared. We can now calculate the user's score. 
+8. The only logic unaccounted for is the time expiration before the user does anything. Once `setInterval` runs enough times to decrement `timeRemaining` down to zero, a conditional will be triggered that clears the inteveral, resets the timer, and opens the dialog. 
+9. This logic creates a boolean expression that will conditionally display the challenge text in the interface. Before, the `timerStarted` state variable was used. 
+10. Because it's a boolean expression set with similar logic as the `timerStarted` state variable previously, this is any easy substitution. 
+
+In addition to conditionally displaying success messages and scores, we need to correct a problem where the timer is being reset before it's passed to the dialog. We need reorder those events, which involves sharing state across components. 
+
+`ResultModal.jsx`: 
+``` JSX 
+import { useRef, useImperativeHandle } from "react";
+
+export default function ResultModal({
+  ref,
+  // result,
+  targetTime,
+  remainingTime, // #5
+  onReset,
+}) {
+  const dialog = useRef();
+  const userLost = remainingTime <= 0; // #6 
+  const formattedRemainingTime = (remainingTime / 1000).toFixed(2); // #7 
+
+  useImperativeHandle(ref, () => {
+    return {
+      open() {
+        dialog.current.showModal();
+      },
+    };
+  });
+
+  return (
+    <dialog ref={dialog} className="result-modal">
+      {userLost && <h2>You lost</h2>}
+      <p>
+        {/*      The target time was: <strong>X</strong> seconds.  */} {/* #8 */}
+        The target time was: <strong>{targetTime}</strong> seconds.
+      </p>
+      <p>
+        You stopped the timer with{" "}
+        {/* <strong>{result} seconds left.</strong> */} {/* 9 */}
+        <strong>{formattedRemainingTime} seconds left.</strong>
+      </p>
+      <form method="dialog" onSubmit={onReset}> {/* #10 */}
+        <button>Close</button>
+      </form>
+    </dialog>
+  );
+}
+```
+
+`TimerChallenge.jsx`: 
+``` JSX 
+import { useState, useRef } from "react";
+import ResultModal from "./ResultModal";
+
+export default function TimerChallenge({ title, targetTime }) {
+  const timer = useRef();
+  const dialog = useRef();
+
+  const [timeRemaining, setTimeRemaining] = useState(targetTime * 1000);
+
+  const timerIsActive = timeRemaining > 0 && timeRemaining < targetTime * 1000;
+
+  if (timeRemaining <= 0) {
+    clearInterval(timer.current);
+    // setTimeRemaining(targetTime * 1000); // #1 
+    dialog.current.open();
+  }
+
+  function handleReset() { // #2 
+    setTimeRemaining(targetTime * 1000);
+  }
+
+  function handleStart() {
+    timer.current = setInterval(() => {
+      setTimeRemaining((prevTimeRemaining) => prevTimeRemaining - 10);
+    }, 10);
+  }
+
+  function handleStop() {
+    dialog.current.open();
+    clearInterval(timer.current);
+  }
+
+  return (
+    <>
+      <ResultModal
+        ref={dialog}
+        targetTime={targetTime}
+        remainingTime={timeRemaining} {/* #3 */}
+        onReset={handleReset} {/* #4 */}
+      />
+      <section className="challenge">
+        <h2>{title}</h2>
+        <p className="challenge-time">
+          {targetTime} second{targetTime > 1 ? "s" : ""}
+        </p>
+        <p>
+          <button onClick={timerIsActive ? handleStop : handleStart}>
+            {timerIsActive ? "Stop" : "Start"} Challenge
+          </button>
+        </p>
+        <p className={timerIsActive ? "active" : undefined}>
+          {timerIsActive ? "Time is running..." : "Timer inactive"}
+        </p>
+      </section>
+    </>
+  );
+}
+
+```
+
+Notes. 
+1. We can't update `timeRemaining` before the `ResultsModal` is displayed, because `timeRemaining` is being used in the modal. We'll comment it out here. Now the interval is cleared and the dialog is opened, with the value of `timeRemaining` usable for scoring. 
+2. `handleReset()` will be the function we use to respond to an event in the child component. Specifically, this function will be triggered after the dialog box is dismissed, at which point it's no longer necessary to keep track of the score. 
+3. Passing `remainingTime` into the `ResultModal` component
+4. Also passing `handleReset`, which we'll use when the dialog is dismissed. 
+5. Adding in props to catch the newly-passed values 
+6. Creating and setting a `userLost` flag
+7. Preparing remaining time to be displayed. Note that `toFixed()` is a native JavaScript function that sets the number of decimal places to display
+8. Adding the `targetTime` to the text
+9. Displaying the time remaining 
+10. Finally, passing `onReset` to the `onSubmit` prop on `form` so it will be called when the dialog box is dismissed. This will reset the timer. 
+
+Now, we just need to calculate and display the score. This happens directly in the `ResultModal` component. 
+``` JSX
+const score = Math.round((1 - remainingTime / (targetTime * 1000)) * 100);
+```
+
+To calculate the score, we divide the remaining time by the target time (converted to milliseconds), subtract it from 1 and multiply by 100, using `Math.round()`) to clean it up. We can then drop it in the dialog with `{!userLost && <h2>Your Score: {score}</h2>}`
+
+> Note: The `dialog` element allows users to close a dialog by pressing `ESC` on their keyboards. Currently, this will **not** trigger the `onReset` function. To fix this, add the built-in `onClose` prop to the `dialog` element and bind it to the `onReset` prop value. 
+
+``` JSX
+<dialog ref={dialog} className="result-modal" onClose={onReset}>
+  ...
+</dialog>
+```
+
+### Introducing and Understanding Portals 
+A portal lets you explicitly designate a place in the DOM to render a component's code. In this case, Max uses the example of the dialog box, which renders in the DOM right alongside the `section` element where the game content lives. Because of the way the `dialog` works, it's hidden by default and renders without issue, but it's still pretty deeply nested in the DOM structure. This makes it possible for other elements to be rendered overtop of it. In this case, it might be better to create a place closer to the root of the DOM where the modal's code can be rendered. We don't want to move the `ResultModal` component from where it is in the code, though, because it needs to have access to the data in the `TimerChallenge` component. The solution is to use a portal to move the code somewhere else when the page renders. 
+
+Max created a `div` with the id "modal" in the `index.html` file of the project to serve as a destination for the modal code. To create a portal, we have to import the `createPortal()` function from `'react-dom'` in the component that will be moving. 
+``` jsx
+import { createPortal } from "react-dom";
+```
+
+Then, we just update the `return` statement to use the `createPortal` function, to which we pass the JSX code we already have and the element where we want it to go. 
+
+``` JSX
+return createPortal(
+  <dialog ref={dialog} className="result-modal">
+  ...
+  </dialog>,
+  document.getElementById('modal'); 
+)
+```
+
+`createPortal` is related to `createRoot`, the function used to load the top-level component into the `index.html` page. 
