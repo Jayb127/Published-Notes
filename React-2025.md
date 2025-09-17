@@ -2342,3 +2342,222 @@ return createPortal(
 ```
 
 `createPortal` is related to `createRoot`, the function used to load the top-level component into the `index.html` page. 
+
+## Advanced State Management 
+To start this module, Max talked about a problem with managing state across more complex applications with a greather number of components. A state variable in the app's root component may need to be passed through several layers of components to reach a child that needs it for some reason. **Prop drilling** refers to passing a state variable as a prop through multiple layers, especially when the state value isn't needed by any/most of the components through which it's passing. In addition to being more confusing and tedious to maintain, components that must always have these state variables passed through are less reusable than they otherwise would be. This section introduces features meant to help manage those more complex ways of managing state. 
+
+In the demo project for this section, a state value is created in the `App` component (root) and forwarded through multiple child components. 
+
+### Component Composition 
+Max doesn't give an exact definition of this term, but **Component Composition** seems to refer to the efficient configuration of components to minimize prop drilling. 
+
+For example, given the following two components, `App` and `Shop`: 
+``` JSX 
+// App.jsx: 
+function App() {
+  const [shoppingCart, setShoppingCart] = useState({
+    items: [],
+  });
+
+  function handleAddItemToCart(id) {
+    setShoppingCart((prevShoppingCart) => {
+      // a whole buncha stuff was removed from here to save space 
+      return {
+        items: updatedItems,
+      };
+    });
+  }
+
+  return (
+    <>
+      <Header
+        cart={shoppingCart}
+        onUpdateCartItemQuantity={handleUpdateCartItemQuantity}
+      />
+      <Shop onAddItemToCart={handleAddItemToCart} />
+    </>
+  );
+}
+
+// Shop.jsx 
+export default function Shop({ onAddItemToCart }) {
+  return (
+    <section id="shop">
+      <h2>Elegant Clothing For Everyone</h2>
+
+      <ul id="products">
+        {DUMMY_PRODUCTS.map((product) => (
+          <li key={product.id}>
+            <Product {...product} onAddToCart={onAddItemToCart} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+`App` passes the state setter function into `Shop`, which passes it into `Product`. We can skip a step by changing the way `Shop` is implemented on the page. Instead of being a self-closing tag, `Shop` can wrap around JSX code that is stored in the `children` prop. Using this feature, we can access the `Product` component directly from `App`. 
+
+
+``` JSX 
+// App.jsx 
+function App() {
+  const [shoppingCart, setShoppingCart] = useState({
+    items: [],
+  });
+
+  function handleAddItemToCart(id) {
+    // yadda yadda yadda
+  } 
+
+  return (
+    <>
+      <Shop> {/*  Shop wraps now */}
+        {DUMMY_PRODUCTS.map((product) => (
+          <li key={product.id}>
+            <Product {...product} onAddToCart={handleAddItemToCart} />
+          </li>
+        ))}{" "}
+      </Shop>
+    </>
+  );
+}
+
+// Shop.jsx 
+export default function Shop({ children }) {
+  return (
+    <section id="shop">
+      <h2>Elegant Clothing For Everyone</h2>
+      <ul id="products">{children}</ul>
+    </section>
+  );
+}
+```
+
+By configuring `Shop` this way, we avoid drilling down through an extra component. Thoughtful component design should include considering how to build and arrange components to minimize prop drilling. However, this won't always be possible/enough to manage really complex projects, so there are other features available for advanced state management.
+
+### Ract's Context API 
+A React feature making it easier to share data throughout the application. It can easily be connected to state, making the value accessible from anywhere without prop drilling. 
+
+Per Max, it's customary to create a subfolder within `src`, often called `store` to hold context objects. This is not functionally necessary, but it's not a bad idea given the distinct role of these files. 
+
+`/src/store/shopping-cart-context.jsx`: 
+```JSX 
+import { createContext } from 'react'; 
+
+// Note the use of uppercase letters
+// createContext() takes an optional argument to populate a "initial value" of any type 
+// In this case, we're creating an object. 
+export const CartContext = createContext({
+  items:[]
+}); 
+```
+
+To use the context, we'll import it into a component that has access to a lot of other components. In this case, `App` makes the most sense, because it has `Header`, `Shop`, and `Product` in it. So we'll import `CartContext` into `App` and then use `CartContext` as the root element being returned by `App`, replacing the fragment we had there. 
+
+``` JSX 
+import { CartContext } from "./store/shopping-cart-context";
+
+function App() {
+  // A lot of stuff that I deleted 
+  return (
+    <CartContext value={{items:[]}}> {/* <-- Replaced the <></> fragment as the root element. The value prop is covered further down */}
+      <Header
+        cart={shoppingCart}
+        onUpdateCartItemQuantity={handleUpdateCartItemQuantity}
+      />
+      <Shop>
+        {DUMMY_PRODUCTS.map((product) => (
+          <li key={product.id}>
+            <Product {...product} onAddToCart={handleAddItemToCart} />
+          </li>
+        ))}{" "}
+      </Shop>
+    </CartContext>
+  );
+}
+```
+
+> **Important Note!**
+> 
+> The syntax above is supported in React version 19 and above. In older versions of React, the context component must reference a nested `Provider` property when being returned. E.g. `<CartContext.Provider>` instead of `<CartContext>`. Referencing `Provider` is still supported in React v19. 
+
+Even though we can (and should) create a context with a default value (as we did in the example above (with the empty items array), it's still necessary to pass a value into a `value` prop when adding a context component. In this case, we can pass in the same thing we're using as the default value: an empty array called `items`. 
+
+Typed straight from Max's pop up tip: The default value set when creating the context is only used if a component that was not wrapped by the Provider component tries to access the context value. Max also points out that having the default value (that matches what's passed into the `value` prop) helps with autocomplete/syntax in the editor. 
+
+To access/consume the context, you can use one of two hooks: `useContext` or `use`. The way they're used is the same, but `use` is more flexible, since it can be placed inside the body of a conditional or loop without throwing an error (unlike other React hooks). 
+
+``` JSX 
+import { use } from 'react'; 
+import { useContext } from 'react'; 
+import { CartContext } from '../store/shopping-cart-context.jsx'; 
+
+export default function Cart({ items, onUpdateItemQuantity }) {
+  const cartCtx = use(CartContext); 
+  const cartCtx = useContext(CartContext); 
+}
+```
+`use` is only available pre-React v19. You're more likely to see `useContext` out in the wild.
+
+Note: Instead of declaring a variable to store the return value of the `useContext` hook, you can destructure the members defined when setting the default value/`value` prop. e.g. `const {items} = useContext(CartContext);`
+
+Up to this point, we've been passing an object with an empty array called `items` into the `value` prop of our `CartContext` object. Conveniently, the state value in the `App` component, called `shoppingCart`, is also an object with an empty `items` array. This makes it easy to demonstrate how state can be tied to these context values. Instead of passing an anonymous object with an `items` array into the `CartContext` component, we'll pass in the state value. 
+
+```JSX 
+function App() {
+  const [shoppingCart, setShoppingCart] = useState({
+    items: [],
+  });
+
+  return (
+    <CartContext.Provider value={shoppingCart}>
+  ); 
+}
+
+```
+
+This makes the state value available via the context, but it doesn't allow us to update the state, since we don't have access to the setter function. To improve on this, we have to send a more complex object to `value`. 
+
+```JSX
+
+const ctxValue = {
+  items: shoppingCart.items, 
+  addItemToCart: handleAddItemToCart
+}
+
+return (
+  <CartContext.Provider value={ctxValue}>
+)
+
+```
+
+Instead of just passing `shoppingCart`, we're going to pass an object that contains pointers to `shoppingCart` and a local function (`handleAddItemToCard`) that invokes the state setter function. This will give us access to everything we need. 
+
+``` JSX 
+import { useContext } from "react";
+import { CartContext } from "../store/shopping-cart-context";
+
+export default function Product({ id, image, title, price, description }) {
+  // context object can be destructured. 
+  const { items, addItemToCart } = useContext(CartContext);
+
+  return (
+    <article className="product">
+      <img src={image} alt={title} />
+      <div className="product-content">
+        <div>
+          <h3>{title}</h3>
+          <p className="product-price">${price}</p>
+          <p>{description}</p>
+        </div>
+        <p className="product-actions">
+          {/* Event listener function updated to use the state setter and pass in the ID. */}
+          <button onClick={() => addItemToCart(id)}>Add to Cart</button>
+        </p>
+      </div>
+    </article>
+  );
+}
+```
