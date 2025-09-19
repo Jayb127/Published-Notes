@@ -2561,3 +2561,304 @@ export default function Product({ id, image, title, price, description }) {
   );
 }
 ```
+
+When doing this, also remember to update the context file to recognize the new value(s) that may be stored in/extracted from the context object. This will also improve intellisense/autocomplete in your code editor. 
+
+In `shopping-cart-context.jsx`: 
+```JSX
+import { createContext } from "react";
+
+export const CartContext = createContext({
+  items: [],
+  addItemToCart: () => {}, // The actual function definition is overwritten on implementation. 
+  updateItemQuantity: () => {},
+});
+
+```
+
+The easiest and most common method of interacting with a context object is with the `useContext` hook, but there is another way to do it that you may come across. This method uses your context component's `Consumer` property, which wraps around a function, which wraps around the returned JSX code. Not very readable. 
+
+So from this: 
+```JSX 
+return (
+	<div>Hi there</div>
+)
+```
+
+to this: 
+``` JSX 
+return (
+	<CartContext.Consumer>
+		{(cartCtx) => {
+			return (
+				<div> Hi there </div>
+			)
+		}}
+	</CartContext.Consumer>
+)
+```
+
+With this syntax, the context object, `cartCtx`, is available to the code within the function. 
+
+> Note: when you access a context value in a component and the context value changes, the component function that accesses the context value is reexecuted by React. 
+
+Max followed this with several examples in the demo project where he removed prop drilling and replaced it with references to the context object. 
+
+### Outsourcing Context & State Into a Separate Provider Component 
+At this stage in the demo project, Max commented that the `App` component was getting bogged down with functions and operations related to the state and context objects. He said that it's common practice to outsource context-related operations to a "Provider" component that lives in the context store file. For example: 
+
+In `shopping-cart-context.jsx`: 
+``` JSX
+import { createContext, useState } from "react";
+import { DUMMY_PRODUCTS } from "../dummy-products";
+
+export const CartContext = createContext({
+  items: [],
+  addItemToCart: () => {},
+  updateItemQuantity: () => {},
+});
+
+export default function CartContextProvider({ children }) {
+  const [shoppingCart, setShoppingCart] = useState({
+    items: [],
+  });
+
+  function handleAddItemToCart(id) {
+    setShoppingCart((prevShoppingCart) => {
+      const updatedItems = [...prevShoppingCart.items];
+
+      const existingCartItemIndex = updatedItems.findIndex(
+        (cartItem) => cartItem.id === id
+      );
+      const existingCartItem = updatedItems[existingCartItemIndex];
+
+      if (existingCartItem) {
+        const updatedItem = {
+          ...existingCartItem,
+          quantity: existingCartItem.quantity + 1,
+        };
+        updatedItems[existingCartItemIndex] = updatedItem;
+      } else {
+        const product = DUMMY_PRODUCTS.find((product) => product.id === id);
+        updatedItems.push({
+          id: id,
+          name: product.title,
+          price: product.price,
+          quantity: 1,
+        });
+      }
+
+      return {
+        items: updatedItems,
+      };
+    });
+  }
+
+  function handleUpdateCartItemQuantity(productId, amount) {
+    setShoppingCart((prevShoppingCart) => {
+      const updatedItems = [...prevShoppingCart.items];
+      const updatedItemIndex = updatedItems.findIndex(
+        (item) => item.id === productId
+      );
+
+      const updatedItem = {
+        ...updatedItems[updatedItemIndex],
+      };
+
+      updatedItem.quantity += amount;
+
+      if (updatedItem.quantity <= 0) {
+        updatedItems.splice(updatedItemIndex, 1);
+      } else {
+        updatedItems[updatedItemIndex] = updatedItem;
+      }
+
+      return {
+        items: updatedItems,
+      };
+    });
+  }
+
+  const ctxValue = {
+    items: shoppingCart.items,
+    addItemToCart: handleAddItemToCart,
+    updateItemQuantity: handleUpdateCartItemQuantity,
+  };
+
+  return (
+    <CartContext.Provider value={ctxValue}>{children}</CartContext.Provider>
+  );
+}
+
+```
+
+`CartContextProvider` is now managing all the state and the operations that modify the state. All of that code has been removed from `App` and added here. Note: 
+* The return statement is just the `CartContext.Provider` value, again bound to our context value. 
+* Rememeber that the context component has to wrap around the components that need to access the component, so it's important to deconstruct the `children` prop and add it inside the opening and closing tags in the `return` statement. 
+
+Now to use it, we just import the provider component into `App` and replace the old context component with it. 
+
+`App.jsx`
+```JSX
+import { useState } from "react";
+import CartContextProvider from "./store/shopping-cart-context";
+import Header from "./components/Header";
+import Shop from "./components/Shop";
+import Product from "./components/Product";
+import { DUMMY_PRODUCTS } from "./dummy-products.js";
+
+function App() {
+  return (
+    <CartContextProvider>
+      <Header />
+      <Shop>
+        {DUMMY_PRODUCTS.map((product) => (
+          <li key={product.id}>
+            <Product {...product} />
+          </li>
+        ))}{" "}
+      </Shop>
+    </CartContextProvider>
+  );
+}
+export default App;
+```
+
+### useReducer
+The `useReducer` hook is a method of streamlining state management and prevent components from getting bogged down with event handlers. This works by taking the logic for the various ways that the state can change and adding it all to a "dispatch" function. When the state needs to change, an "action" can be dispatched that performs the logic based on the action type. This improves reusability and keeps the tedious object evaluation and manipulation together, away from other component logic. 
+
+```JSX 
+import { createContext, useReducer } from "react";
+import { DUMMY_PRODUCTS } from "../dummy-products";
+
+export const CartContext = createContext({
+  items: [],
+  addItemToCart: () => {},
+  updateItemQuantity: () => {},
+});
+
+function shoppingCartReducer(state, action) {
+  //7
+  if (action.type === "ADD_ITEM") {
+    const updatedItems = [...state.items]; // 8
+
+    const existingCartItemIndex = updatedItems.findIndex(
+      (cartItem) => cartItem.id === action.payload // 9
+    );
+    const existingCartItem = updatedItems[existingCartItemIndex];
+
+    if (existingCartItem) {
+      const updatedItem = {
+        ...existingCartItem,
+        quantity: existingCartItem.quantity + 1,
+      };
+      updatedItems[existingCartItemIndex] = updatedItem;
+    } else {
+      const product = DUMMY_PRODUCTS.find(
+        (product) => product.id === action.payload
+      );
+      updatedItems.push({
+        id: action.payload,
+        name: product.title,
+        price: product.price,
+        quantity: 1,
+      });
+    }
+
+    // 10
+    return {
+      ...state,
+      items: updatedItems,
+    };
+  }
+
+  // 13
+  if (action.type === "UPDATE_ITEM") {
+    const updatedItems = [...state.items];
+    const updatedItemIndex = updatedItems.findIndex(
+      (item) => item.id === action.payload.productId
+    );
+
+    const updatedItem = {
+      ...updatedItems[updatedItemIndex],
+    };
+
+    updatedItem.quantity += action.payload.amount;
+
+    if (updatedItem.quantity <= 0) {
+      updatedItems.splice(updatedItemIndex, 1);
+    } else {
+      updatedItems[updatedItemIndex] = updatedItem;
+    }
+
+    return {
+      ...state,
+      items: updatedItems,
+    };
+  }
+
+  //2
+  return state;
+}
+
+export default function CartContextProvider({ children }) {
+  // 14
+  const [shoppingCartState, shoppingCartDispatch] = useReducer(
+    // 1 and 3
+    shoppingCartReducer,
+    {
+      items: [],
+    }
+  );
+
+  function handleAddItemToCart(id) {
+    // 5
+    shoppingCartDispatch({
+      type: "ADD_ITEM",
+      payload: id,
+    });
+
+    // 6, removal of setShoppingCart. body moved to reducer function
+  }
+
+  function handleUpdateCartItemQuantity(productId, amount) {
+    // 11
+    shoppingCartDispatch({
+      type: "UPDATE_ITEM",
+      payload: {
+        productId,
+        amount,
+      },
+    });
+
+    // 12
+  }
+
+  const ctxValue = {
+    items: shoppingCartState.items, // 4
+    addItemToCart: handleAddItemToCart,
+    updateItemQuantity: handleUpdateCartItemQuantity,
+  };
+
+  return (
+    <CartContext.Provider value={ctxValue}>{children}</CartContext.Provider>
+  );
+}
+
+```
+
+Notes: 
+1. After importing `useReducer` from `react`, we add it just like we'd add any other hook. The deconstructed array contains 2 arguments: a state object and a dispatch function that will be called in response to an "action".
+2. Outside the component function, we define a function that accepts a state variable (which is guaranteed to contain the most recent value of the state variable) and an action. 
+3. The function defined in step 2 is the first of two arguments that can be passed to the `useReducer` hook. Passing in this pointer registers the function as what will trigger when `shoppingCartDispatch` is called. The second argument passed to the hook is the default value of state object. In this case, as before, the state object contains 1 member, an empty array called `items`. 
+4. `shoppingCartState` is now replacing `shoppingCart` as our main state variable, so we're switching to that down here 
+5. The `handleAddItemToCart` function obviously adds an item to a cart, but the logic as currently written requires several steps. Instead, we're dispatching an action by calling the `shoppingCartDispatch` function we created when calling `useReducer` and passing in an "action" object. The `type` and `payload` keys are common, but not specifically required. In general, the action should include something that indicates what operation is meant to take place and then some sort of data that's necessary to perform the operation. 
+6. The dispatch action replaces `setShoppingCart`, but the logic is moved into the reducer function. 
+7. Now we can check `action` to determine what to do with the state. 
+8. We have to swap out some values here. Before, this was `...prevCart.items`, but `state` is now the variable we're using to refer to the current state value. 
+9. Same thing here. Pointing the filtering to the ID passed in `action.payload`. 
+10. the new value of the state object is returned. 
+11. Now we're adding a new action dispatch to trigger an update for `handleUpdateItemQuantity`. While it is possible to return `type`, `productId`, and `amount` all as keys in the action object, Max recommends getting in the habit of using `payload` for consistency. In that case, we return an object that contains the other two values. Note also the shorthand syntax. Instead of writing `productId:productId`, we can just put `productId` if the key in the new object is the same as the key in the source object. 
+12. Once again, we remove the logic for use in the dispatch function. 
+13. And add it to a new action-based conditional in the dispatch function, replacing the variables to refer to `state` and `action` as needed. 
+14. We can get rid of the `useState` hook because we're not using that anymore. 
